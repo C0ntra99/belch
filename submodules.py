@@ -1,6 +1,6 @@
 from os import listdir, sep
 from os.path import abspath, basename, isdir
-import xml.etree.ElementTree
+import xml.etree.cElementTree
 import os
 
 def tree(dir, padding):
@@ -24,33 +24,92 @@ def tree(dir, padding):
 
 
 
-def xmlSearch(options):
+class XmlSearch:
 
-    return_list = []
-    ##Walk through the folders and parse the xml
-    for root, dir, files in os.walk('{}/'.format(options.domain)):
-        for file_ in files:
-            e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
+    @staticmethod
+    def xmlParse(domain):
+        parsedFiles = []
+        print domain
+        for root, dir, files in os.walk('{}/'.format(domain)):
+            for file_ in files:
+                e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
 
-            newDict = {}
-            for type in e:
-                newDict[type.tag] = type.text
+                newDict = {}
+                for type in e:
+                    newDict[type.tag] = type.text
+                parsedFiles.append(newDict)
 
-            ##If a value matches a query then add to return_list
+        return parsedFiles
+
+    @staticmethod
+    def printUsers(domain):
+        return_dict = {}
+        computerAccounts = []
+        userAccounts = []
+        for attributes in XmlSearch.xmlParse(domain):
             try:
-                ##Parse through the options if the dict needs to be returned
-                if options.user:
-                    if newDict['sAMAccountName'] == options.user:
-                        return_list.append(newDict)
-                elif options.group:
-                    if options.group in newDict['memberOf']:
-                        return_list.append(newDict)
-                elif options.query:
-                    ##gonna need to think through This
-                    pass
-                elif options.keyword:
-                    if options.keyword in newDict.values() or options.keyword in newDict.keys():
-                        return_list.append(newDict)
+                attributes['objectClass']
             except:
-                pass
-    return return_list
+                continue
+            if "user" in attributes['objectClass'].split(' ') and "person" in attributes['objectClass'].split(' '):
+                try:
+                    attributes['sAMAccountName']
+                except:
+                    continue
+
+                if attributes['sAMAccountName'][-1] == '$':
+                    computerAccounts.append(attributes['sAMAccountName'])
+                else:
+                    userAccounts.append(attributes['sAMAccountName'])
+
+        return_dict['computerAccounts'] = computerAccounts
+        return_dict['userAccounts'] = userAccounts
+        return return_dict
+
+    @staticmethod
+    def getUser(user, domain):
+        for attributes in XmlSearch.xmlParse(domain):
+            return_list = []
+            if attributes.get('sAMAccountName') == user:
+                return_list.append(attributes)
+                break
+        return return_list
+
+    @staticmethod
+    def getGroups(domain):
+        return_list = []
+        for attributes in XmlSearch.xmlParse(domain):
+            try:
+                attributes['objectClass']
+            except:
+                continue
+
+            if "group" in attributes['objectClass'].split(' '):
+                return_list.append(attributes['cn'])
+
+        return return_list
+
+    @staticmethod
+    def groupMembership(group, domain):
+        ##Return a list of dictionaries to hold all the attributes of each user
+        return_list = []
+        for attributes in XmlSearch.xmlParse(domain):
+
+            if attributes.get("objectClass") and "group" in attributes.get("objectClass"):
+                ##Make sure it is that one group
+                try:
+                    attributes['member']
+                except:
+                    continue
+                if group in attributes['cn']:
+                    for objectName in attributes['member'].split(','):
+                        if 'CN=' in objectName:
+                            return_list.append(objectName.split('CN=')[1])
+                    #return_list.append(attributes['member'])
+
+        return return_list
+
+    ##This one is going to take a sec
+    @staticmethod
+    def getPolicies(domain):
+        pass

@@ -7,24 +7,24 @@ from dicttoxml import dicttoxml
 import argparse
 import getpass
 from submodules import *
+import xml.etree.cElementTree as ET
+import datetime
 
-###This is will create a full file structure of the Active Directory
+'''Things to do'''
+'''
+Please thread the xml parsing holy FUCK
+Update readme to reflect the new output formats
+xml output for groupMembership
+xls output for all
 
-##Create a folder for each OU
-##Create a file for each thing inside OU
-##Write the attributes and values of the CN to the file maybe in XML
+if xml output:
+parse EVERYTHING and create xml attributes with EVERYTHING and what values and attributes it holds
 
-'''Things that dont work'''
-'''Anything with the SQL flag
-    Write search ArgumentParser
-        -given a chached domain will search for like thing
-        -if no chached domain attempt to run main function on all the domain
-        -walk through directories, if contents of index.xml meet the search criteria, then add path to a list
 '''
 
 class Belch:
 
-    def __init__(self, u_name, passwd, domain, options):
+    def __init__(self, u_name=None, passwd=None, domain=None, options=None):
         self.u_name = u_name
         self.passwd = passwd
         self.domain = domain
@@ -32,16 +32,13 @@ class Belch:
         self.baseDN = ''
         self.spl = len(self.domain.split('.')) * -1
 
-        ##Create the base directory
-        os.mkdir(self.domain)
-
         for domainParts in domain.split('.'):
             self.baseDN += 'dc={},'.format(domainParts)
         self.baseDN = self.baseDN[:-1]
 
         self.objects = []
 
-    def thing(self, data):
+    def processRecord(self, data):
         if isinstance(data, ldapasn1.SearchResultEntry) is not True:
             return
 
@@ -67,10 +64,9 @@ class Belch:
         try:
             os.makedirs(path)
         except Exception as err:
-            print(err)
+            ##Will have a bunch of file already exists error due to how path creation works
+            pass
 
-        if self.options.verbose:
-            print("Path: ", path)
 
     def generateXml(self, info):
         newDict = {}
@@ -85,18 +81,139 @@ class Belch:
                 path += y[3:]+'/'
         path += 'index.xml'
 
-        if self.options.verbose:
-            print("Path: ", path)
         file = open(path, 'w')
         xml = dicttoxml(newDict)
         file.write(xml.decode())
         file.close()
 
-        ##Change time from unix times to human times
-        ##Maybe I should do this before putting it in xml....maybe
-        ##Parse group membership
-        ##Maybe I should do this before putting it in xml....maybe
         return
+
+    def printUsers(self):
+        cacheSearch = XmlSearch.printUsers(self.domain)
+
+        computerAccounts = cacheSearch['computerAccounts']
+        userAccounts = cacheSearch['userAccounts']
+
+        if options.stdout:
+            print("[+]All user accounts registered in the {} domain".format(self.domain))
+            for i, user in enumerate(userAccounts):
+                i +=1
+                l = []
+                [l.append(len(x)) for x in userAccounts]
+
+                pad = max(l)
+                if i % 3 != 0:
+                    print("{:{pad}}|".format(user, pad=pad), end=' ')
+                else:
+                    print("{:{pad}}|".format(user, pad=pad), end='\n')
+
+            print("\n[+]All system accounts registered in the {} domain".format(self.domain))
+            for i, user in enumerate(computerAccounts):
+                i +=1
+                l = []
+                [l.append(len(x)) for x in computerAccounts]
+
+                pad = max(l)
+                if i % 3 != 0:
+                    print("{:{pad}}|".format(user, pad=pad), end=' ')
+                else:
+                    print("{:{pad}}|".format(user, pad=pad), end='\n')
+        elif options.xml:
+            root = ET.Element("{}".format(self.domain))
+            accounts = ET.SubElement(root, "accounts")
+            for user in userAccounts:
+                ET.SubElement(accounts, "userAccount", type='userAccount').text = user
+            for computer in computerAccounts:
+                ET.SubElement(accounts, "computerAccount", type='computerAccounts').text = computer
+
+            tree = ET.ElementTree(root)
+            tree.write('{}_accounts.xml'.format(self.domain))
+        elif options.xls:
+            print("xls options")
+
+    def getUser(self, user):
+        ##Print information for the specified group
+        cacheSearch = XmlSearch.getUser(user, self.domain)
+        if options.stdout:
+            print("[+]Informaiton about the user: {}".format(user))
+            for attributes in cacheSearch:
+                l = []
+                [l.append(len(x)) for x in attributes.keys()]
+                pad = max(l)
+                for attr, value in attributes.items():
+                    print("{:{pad}}:{}".format(attr, value, pad=pad))
+
+        elif options.xml:
+            cacheSearch = XmlSearch.getUser(user, self.domain)
+            for attributes in cacheSearch:
+                file = open('{}_{}.xml'.format(self.domain, user), 'w')
+                xml = dicttoxml(attributes)
+                file.write(xml.decode())
+                file.close()
+
+        elif options.xls:
+            print("XLS option")
+
+
+    def printGroups(self):
+        ##print all the print Groups
+
+        ##Parse the objectClass to figure if somthing is a group
+        cacheSearch = XmlSearch.getGroups(self.domain)
+        if options.stdout:
+            print("[+]Groups within the {} domain:".format(self.domain))
+            for i, group in enumerate(cacheSearch):
+                i +=1
+                l = []
+                [l.append(len(x)) for x in cacheSearch]
+
+                pad = max(l)
+                if i % 3 != 0:
+                    print("{:{pad}}|".format(group, pad=pad), end=' ')
+                else:
+                    print("{:{pad}}|".format(group, pad=pad), end='\n')
+        elif options.xml:
+            root = ET.Element("{}".format(self.domain))
+            groups = ET.SubElement(root, "groups")
+            for group in cacheSearch:
+                ET.SubElement(groups, "group", name=group).text = group
+            tree = ET.ElementTree(root)
+            tree.write('{}_groups.xml'.format(self.domain))
+
+        elif options.xls:
+            print("XLS option")
+
+    def groupMembership(self, group):
+        cacheSearch = XmlSearch.groupMembership(group, self.domain)
+
+        if options.stdout:
+            print('[+]Membership for: {}'.format(group))
+            for i, user in enumerate(cacheSearch):
+                i +=1
+                l = []
+                [l.append(len(x)) for x in cacheSearch]
+
+                pad = max(l)
+                if i % 3 != 0:
+                    print("{:{pad}}|".format(user, pad=pad), end=' ')
+                else:
+                    print("{:{pad}}|".format(user, pad=pad), end='\n')
+
+            print('\n[+]Caution, some of these might be other groups...')
+
+        elif options.xml:
+            root = ET.Element("{}".format(self.domain))
+            groupName = ET.SubElement(root, group)
+            for user in cacheSearch:
+                ET.SubElement(groupName, "user", name=user).text = user
+                ##Print out type={group, user}
+                ##Print out attributes of each user once it gets created in submodules
+            tree = ET.ElementTree(root)
+            tree.write('{}_{}.xml'.format(self.domain, group))
+
+        elif options.xls:
+            print("XLS option")
+
 
     def run(self):
 
@@ -108,83 +225,79 @@ class Belch:
         except Exception as err:
             print(err)
 
-        try:
+
             if self.options.users:
                 ##Filter to grab only users
                 filter = "(&(objectCategory=Person)(sAMAccountName=*))"
             elif self.options.computers:
                 ##Filter to grab only computers
                 filter = "(&(objectCategory=Computer)(objectClass=*))"
-            else:
-                filter = "(&(objectCategory=*)(objectClass=*))"
-        except:
-            if self.options.username:
+            elif self.options.username:
                 ##Filter to grab only information for specified user
                 filter = "(&(objectCategory=Person)(sAMAccountName={}))".format(self.options.username)
-            elif self.options.computer:
+            elif self.options.computerName:
                 ##Filter to grab only information for specified computer
-                filter = "(&(objectCategory=Computer)(cn={}))".format(self.options.computer)
+                filter = "(&(objectCategory=Computer)(cn={}))".format(self.options.computerName)
             else:
-                sys.exit('[!]Please specify a target when using the "one" option.')
+                filter = "(&(objectCategory=*)(objectClass=*))"
 
 
+        filter = "(&(objectCategory=*)(objectClass=*))"
         sc = ldap.SimplePagedResultsControl(size=100)
 
-        ldapConnection.search(searchFilter = filter, searchControls=[sc], perRecordCallback=self.thing)
+        ldapConnection.search(searchFilter = filter, searchControls=[sc], perRecordCallback=self.processRecord)
 
-        if self.options.stdout:
-            tree(self.domain, ' ')
+        #if self.options.stdout:
+        #    tree(self.domain, ' ')
+
+#executer = Belch("user", "user","Rose.Labs")
+
+
+#executer.run()
+
+#executer.groupMembership("Enterprise Admins")
+#executer.printGroups()
+#executer.printUsers()
+#executer.getUser("STLCC0$")
 
 if __name__ == "__main__":
+    start_time = datetime.datetime.now()
 
     parser = argparse.ArgumentParser()
-    subparser = parser.add_subparsers()
 
-    parser.add_argument('-v', '--verbose', action='store_true', help='Print out paths as they are being created')
-    parser_a = subparser.add_parser('all', help='Query a domain controller for all information unless otherwise specified')
-    parser_a.set_defaults(which='all')
+    parser.add_argument('target', action='store', help='domain/username[:password]')
 
-    parser_a.add_argument('target', action='store', help='domain/username[:password]')
-    parser_a.add_argument('-u','--users', action='store_true', help='Pull all user information.', required=False)
-    parser_a.add_argument('-c', '--computers', action='store_true', help='Pull all computer information.', required=False)
 
-    group_a = parser_a.add_argument_group('output')
-    group_a.add_argument('--stdout', action='store_true', help='Prints out a directory tree of the active directory network after the active directory gets mapped.')
+    control_group = parser.add_argument_group('Control Actions', description='Options when querying the domain')
+    control_group.add_argument('-a', '--all', action='store_true', help='Query for all information on the domain')
+    control_group.add_argument('-u', '--users', action='store_true', help='Only query for the user information on the domain')
+    control_group.add_argument('-uN', '--username', action ='store', help='Only query for one specific user')
+    control_group.add_argument('-c', '--computers', action='store_true', help='Only query for the computer information on the domain')
+    control_group.add_argument('-cN', '--computerName', action='store', help='Only query for one specific computer')
 
-    parser_b = subparser.add_parser('one', help='Query a domain controller for one user or computer')
-    parser_b.set_defaults(which='one')
+    user_group = parser.add_argument_group('User Actions', description='Options when searching through a mapped domain')
+    user_group.add_argument('-pU', '--print-users', action='store_true', help='Print all the users on the domain')
+    user_group.add_argument('-gU', '--get-user', action='store', help='Print out the information of a specified user')
 
-    parser_b.add_argument('target', action='store', help='domain/username[:password]')
-    parser_b.add_argument('-u','--username', action='store', help='Pull information on specific user.')
-    parser_b.add_argument('-c', '--computer', action='store', help='Pull information on a specific computer.')
+    group_group = parser.add_argument_group('Group Actions', description='Options when searching through a mapped domain')
+    group_group.add_argument('-pG', '--print-groups', action='store_true', help='Print all the groups on the domain')
+    group_group.add_argument('-gM', '--group-membership', action='store', help='Print all the members of the specified group')
 
-    group_b = parser_b.add_argument_group('output')
-    group_b.add_argument('--stdout', action='store_true', help='Prints out a directory tree of the active directory network after the active directory gets mapped.')
+    #other_group = parser.add_argument_group('Other options', description='Other options for searching through a mapped domain')
+    ##keyword
+    ##regex
+    ##query
 
-    parser_c = subparser.add_parser('print', help='Print from a previously cached domain')
-    parser_c.set_defaults(which='print')
-
-    parser_c.add_argument('-d', '--domain', action='store', help='Print out a previously mapped domain to stdout')
-    parser_c.add_argument('-g', '--groups', action='store_true', help='Print out all the groups')
-    parser_c.add_argument('-o', '--ou', action='store_true', help='Print out all OUs of the domain')
-    parser_c.add_argument('-u', '--users', action='store_true', help='Print out all the users on a domain')
-
-    parser_d = subparser.add_parser('search', help='Search from a previously cached domain')
-    parser_d.set_defaults(which='search')
-
-    parser_d.add_argument('-d', '--domain', action='store', help='Domain to search through')
-    ##This might need to be moved to print, idk ye
-    parser_d.add_argument('-g', '--group', action='store', help='Print all users in the specified group', required=False)
-    parser_d.add_argument('-u', '--user', action='store', help='Search for the user specified', required=False)
-    parser_d.add_argument('-re', '--regex', action='store', help='Search through everything and return items that match the regular expression', required=False)
-    parser_d.add_argument('-k', '--keyword', action='store', help='Return everything that matches the keyword', required=False)
-    parser_d.add_argument('-q', '--query', action='store', help='Queries a previously mapped domain similar to a real domain. Will return any matching')
+    output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
+    output_group.add_argument('--stdout', action='store_true', help='Print the output to the console')
+    output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
+    output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
 
     options = parser.parse_args()
-
-    ##Fix how this is figured
-    ##Multiple try excepts is unreliable
-    if options.which == 'all' or options.which == 'one':
+    if '/' not in options.target:
+        domain = options.target
+        executer = Belch(domain=domain, options=options)
+    else:
         domain = options.target.split('/')[0]
         if ':' in options.target.split('/')[1]:
             u_name = options.target.split('/')[1].split(':')[0]
@@ -194,40 +307,29 @@ if __name__ == "__main__":
             passwd = getpass.getpass('Password:')
 
         if os.path.exists(domain):
-            sys.exit('[!]Domain map already exists, please delte before running again')
+            sys.exit('[!]Error: Domain map already exists, please delete before running again')
+
+        executer = Belch(u_name, passwd, domain, options)
+
+    if options.all or options.users or options.computers or options.username or options.computerName:
+        if os.path.exists(domain):
+            sys.exit('[!]Error: Domain map already exists, please delete before running again')
         else:
-            executer = Belch(u_name, passwd, domain, options)
-            executer.run()
-
-    elif options.which == 'print':
-        if os.path.exists(options.domain):
-            tree(options.domain, ' ')
+            os.mkdir(domain)
+        executer.run()
+    else:
+        if os.path.exists(domain):
+            if options.print_users:
+                executer.printUsers()
+            elif options.get_user:
+                executer.getUser(options.get_user)
+            elif options.print_groups:
+                executer.printGroups()
+            elif options.group_membership:
+                executer.groupMembership(options.group_membership)
         else:
-            sys.exit("[!]Domain map does not exist.")
+            sys.exit('[!]Error: Cannot locate domain directory')
 
-    elif options.which == 'search':
-        ##Do cool searching shit with xml shit and other cool shit
-        ##Parse though the search options
-        cacheSearch = xmlSearch(options)
-        if options.user:
-            print("[+]Informaiton about the user: {}".format(options.user))
-            for attributes in cacheSearch:
-                l = []
-                [l.append(len(x)) for x in attributes.keys()]
-                pad = max(l)
-                for attr, value in attributes.items():
-                    print("{:{pad}}:{}".format(attr, value, pad=pad))
-
-        if options.group:
-            print('[+]Membership for: {}'.format(options.group))
-            l = []
-            [l.append(len(x['cn'])) for x in cacheSearch]
-            pad = max(l)
-            for i, x  in enumerate(cacheSearch):
-                if i % 3 == 0:
-                    print("{:{pad}}".format(x['sAMAccountName'], pad=pad), end='\n')
-                else:
-                    print("{:{pad}}".format(x['sAMAccountName'], pad=pad), end = '\t')
-
-        if options.keyword:
-            print(cacheSearch)
+    end_time = datetime.datetime.now()
+    elapsed_time = end_time - start_time
+    print("Time elapsed: ", elapsed_time.seconds, ":", elapsed_time.microseconds)
