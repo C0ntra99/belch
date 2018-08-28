@@ -3,7 +3,7 @@
 This program was built with the concept of spitting out information, in our case Active Directory information. Belch will take a domain credentials and proceded to either dump out everything on the AD or certain things. There will be a few options for storing this information, with the current release the only options is to create a mapping with folders and XML files.
 
 ## What it does
-Belch will create a mapping of any active directory network. Active directories consitst of many organizational units(OU) and containers within those OUs. What belch will do by default is query the active directory for everything it has, and then proceed to craft folders for everything that it revcieves. Another cool thing with AD is there are attributes for just about anything that is stored on the AD, so belch will take all attributes that are related to that OU or container and create a index.xml within the folder related to it. After belch is finished there will be a mapping of the everything on the active directory network for future use. 
+Belch will create a mapping of any active directory network. Active directories consitst of many organizational units(OU) and containers within those OUs. What belch will do by default is query the active directory for everything it has, and then proceed to craft folders for everything that it revcieves. Another cool thing with AD is there are attributes for just about anything that is stored on the AD, so belch will take all attributes that are related to that OU or container and create a index.xml within the folder related to it. After belch is finished there will be a mapping of the everything on the active directory network for future use.
 
 ## Getting Started
 
@@ -31,18 +31,24 @@ Now the fun part. Installing belch for yourself!
 git clone https://github.com/C0ntra99/belch
 cd belch
 ```
-Since there is no requirements.txt yet you might run into some dependency issues, just keep running it and instal all the missing depencies.
+
 If both python 2.7 and 3.6 are installed on your system please run this
 
 ```
+pip2 install -r requirements.txt
 python2 belch.py -h
 ```
 Otherwise run
 
 ```
+pip install -r requirements.txt
 python belch.py -h
 ```
-If all goes well you should be presented with the usage page.
+
+If all goes well you should be presented with the usage page. If not check the following things:
+* You are using pip2 and python2
+* Maybe I forgot a dependency, just install manually
+* Make sure you have the right permission to run these commands, if not run as sudo
 
 ## Using belch
 
@@ -59,7 +65,7 @@ python2 belch.py all example.com/user:user
 ```
 
 If you already have a mapped domain in the same directory of the main program you can print it out to the screen buy using
-``` 
+```
 python2 belch.py print -d domain
 ```
 Example:
