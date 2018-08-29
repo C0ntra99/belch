@@ -115,7 +115,3 @@ Please note that the searching is not yet complete, the only flags that currentl
 Currently there are plans to add the following:
 * Maybe even a flask frontend....maybe
 
-
-## Acknowledgments
-
-* Could have done this without the help of the people at coresecurity (https://github.com/CoreSecurity)
