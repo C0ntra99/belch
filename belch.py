@@ -47,22 +47,14 @@ class Belch:
 
         info = []
         for i,attribute in enumerate(data['attributes']):
-            if self.options.sql:
-                ##Create a SQL database instead of directly mapping
-                print("Creating SQL shit")
-            else:
-                if attribute['type'] == 'distinguishedName':
-                    self.generatePath(attribute['vals'][0])
+            if attribute['type'] == 'distinguishedName':
+                self.generatePath(attribute['vals'][0])
 
-                values = {}
-                values[str(attribute['type'])] = str(attribute['vals']).strip('SetOf:').lstrip()
-                info.append(values)
+            values = {}
+            values[str(attribute['type'])] = str(attribute['vals']).strip('SetOf:').lstrip()
+            info.append(values)
 
-        if self.options.sql:
-            ##Create sql database holding the info
-            print("Creating SQL shit")
-        else:
-            self.generateXml(info)
+        self.generateXml(info)
 
     ##Create Directories based off of the distinguishedName
     def generatePath(self, dn):
@@ -181,6 +173,7 @@ if __name__ == "__main__":
     parser_d.set_defaults(which='search')
 
     parser_d.add_argument('-d', '--domain', action='store', help='Domain to search through')
+    ##This might need to be moved to print, idk ye
     parser_d.add_argument('-g', '--group', action='store', help='Print all users in the specified group', required=False)
     parser_d.add_argument('-u', '--user', action='store', help='Search for the user specified', required=False)
     parser_d.add_argument('-re', '--regex', action='store', help='Search through everything and return items that match the regular expression', required=False)

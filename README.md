@@ -52,37 +52,69 @@ If all goes well you should be presented with the usage page. If not check the f
 
 ## Using belch
 
-As of right now the only way to use belch is to use the following command:
+### Mapping a domiain
+To map everything on a domain simply enter:
 ```
 python2 belch.py all domain/username[:password]
 ```
 The ```-v``` and ```--stdout``` flags will also work with this command.
-Will the ```all``` option it wil pull everything from the domain and create folders for everything, and create coresponding 'index.xml' files to store all the attributes. If a password is not provided it will prompt for one.
+Will the ```all``` option it wil pull everything from the domain and create folders for everything, and create corresponding 'index.xml' files to store all the attributes. If a password is not provided it will prompt for one.
 
 Example:
 ```
 python2 belch.py all example.com/user:user
 ```
 
-If you already have a mapped domain in the same directory of the main program you can print it out to the screen buy using
-```
-python2 belch.py print -d domain
-```
+With the latest release it is possible to only grab user or only grab computer. To do that all you need to do is use the ```-u``` or ```-c``` flags with the command.
+
 Example:
 ```
-python2 belch.py print -d example.com
+python2 belch all -u example.com/user:user
 ```
+
+### Printing
+If you already have a mapped domain in the same directory of the main program you can print it out various attributes of that domain buy using ```print```.
+
+To print out the groups:
+```
+python2 belch.py print -d domain -g
+```
+
+To print out the users:
+```
+python2 belch.py print -d domain -u
+```
+
+Examples:
+```
+python2 belch.py print -d example.com -g
+```
+```
+python2 belch.py print -d example.com -u
+```
+
+### Searching
+Similar to the print function the search funtion requires an already mapped domain. So far the only things you can search for are: Group membership, users, and keywords. In the future you will be able to craft your own LDAP query.
+
+To start type:
+```
+python2 belch.py search -h
+```
+
+Examples:
+```
+python2 belch.py search -d example.com -u jdoe
+```
+```
+python2 belch.py search -d example.com -g "Domain admins"
+```
+
+Please note that the searching is not yet complete, the only flags that currently work are ```-u``` and ```-g```. 
 
 ## Future plans
 Currently there are plans to add the following:
-* SQL database for easy searching
-* This might have to be a eperate program
-* Querying for only computers or users
-* Querying for only one computer or user
 * Maybe even a flask frontend....maybe
-* Built in XML parser
 
-This is why you may see flags that do not work. Once they do work I will update the readme.
 
 ## Acknowledgments
 
