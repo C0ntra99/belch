@@ -1,6 +1,6 @@
 ﻿# Belch
 
-This program was built with the concept of spitting out information, in our case Active Directory information. Belch will take domain credentials and proceed to either dump out everything on the AD or specified objects. There will be a few options for storing this information, with the current release the only options is to create a mapping with folders and XML files.
+This program was built with the idea of mapping active directories. Belch will take domain credentials and proceed to either dump out everything on the AD or specified objects. Belch uses the ldap library from impacket (https://github.com/CoreSecurity/impacket)
 
 ## What it does
 Belch will create a mapping of any active directory network. Active directories consitst of many organizational units(OU) and containers within those OUs. What belch will do by default is query the active directory for everything it has, and then proceed to craft folders for everything that it revcieves. Another cool thing with AD is there are attributes for just about anything that is stored on the AD, so belch will take all attributes that are related to that OU or container and create a index.xml within the folder related to it. After belch is finished there will be a mapping of the everything on the active directory network for future use.
@@ -16,60 +16,36 @@ Programs to have before installation
 #### Python 2.7
 This program is written using the Impacket LDAP libreary which is written in python 2.7, so the program is self has to be written in python 2.7. If the program is run with python 3 it will error out.
 
-#### Impacket
-```
-git clone https://github.com/CoreSecurity/impacket
-pip install .
-```
-If this does not work please refer to the Impacket documentation located at https://github.com/CoreSecurity/impacket
+#### pipenv
+Pipenv is used to keep everything in one place and to make sure belch's dependencies don't clash with any other dependencies that are installed on your machine.
 
 ### Installing
-
-Now the fun part. Installing belch for yourself!
-
+Make sure you are in the belch directory and run: 
 ```
-git clone https://github.com/C0ntra99/belch
-cd belch
+pipenv shell
 ```
 
-If both python 2.7 and 3.6 are installed on your system please run this
-
-```
-pip2 install -r requirements.txt
-python2 belch.py -h
-```
-Otherwise run
-
-```
-pip install -r requirements.txt
-python belch.py -h
-```
-
-If all goes well you should be presented with the usage page. If not check the following things:
-* You are using pip2 and python2
-* Maybe I forgot a dependency, if this is the case just install manually
-* Make sure you have the right permission to run these commands, if not run as sudo
-
+The virtual env hasnt been tested a whole lot. I will update the readme once I do some more testing on it
 ## Using belch
 
 ### Mapping a domiain
 To map everything on a domain simply enter:
 ```
-python2 belch.py -a domain/username[:password]
+python belch.py -a domain/username[:password]
 ```
 
 Will the ```-a``` option it will pull everything from the domain and create folders for all the OUs and CNs, and also create corresponding 'index.xml' files to store all the attributes for the object. If a password is not provided it will prompt for one.
 
 Example:
 ```
-python2 belch.py -a example.com/user:user
+python belch.py -a example.com/user:user
 ```
 
 It is also possible to only grab user or only grab computer. To do that all you need to do is replace ```-a``` with ```-u``` for users or ```-c``` for computers with the command.
 
 Example:
 ```
-python2 belch -u example.com/user:user
+python belch -u example.com/user:user
 ```
 
 If you are wanting to only grab one specific user of one specific computer use the ```-uN USERNAME``` or ```-cN COMPUTERNAME``` flags.
@@ -81,11 +57,20 @@ When specifying the domain just exclude the username and password.
 
 Examples:
 ```
-python2 belch.py example.com -pU
+python belch.py example.com -pU
 ```
 ```
-python2 belch.py example.com -gM "Domain admins"
+python belch.py example.com -gM "Domain admins"
 ```
+
+#### Xml output
+With the searching function in belch you can store the output into an xml file. The xml files will usually have more information and just regular stdout.
+
+To do this just put the ```-x``` on the end of your search command:
+
+```
+python belch.py example.com -gU testUser -x
+``` 
 
 ## Future plans
 Currently there are plans to add the following:
@@ -97,4 +82,4 @@ Currently there are plans to add the following:
 * Maybe try and write a program to recreate the domain from the mapped domain...
 
 ## Disclaimer
-This program has blueteams in mind, that being said this is extremely loud on the network and is not considered opsec safe. Run at your own risk.
+This program is extremly loud on a network and is not considered opsec safe. Run at your own risk.

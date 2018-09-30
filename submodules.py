@@ -2,6 +2,7 @@ from os import listdir, sep
 from os.path import abspath, basename, isdir
 import xml.etree.cElementTree
 import os
+from threading import Thread
 
 def tree(dir, padding):
     print padding[:-1] + '+-' + basename(abspath(dir)) + '/'
@@ -27,10 +28,23 @@ def tree(dir, padding):
 class XmlSearch:
 
     @staticmethod
+    def xmlThread(root, files):
+        for file_ in files:
+            e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
+
+            newDict = {}
+            for type in e:
+                newDict[type.tag] = type.text
+            parsedFiles.append(newDict)
+
+    @staticmethod
     def xmlParse(domain):
+        global parsedFiles
         parsedFiles = []
-        print domain
+
         for root, dir, files in os.walk('{}/'.format(domain)):
+            #Thread(target=XmlSearch.xmlThread, args=(root,files,)).start()
+
             for file_ in files:
                 e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
 
@@ -43,6 +57,7 @@ class XmlSearch:
 
     @staticmethod
     def printUsers(domain):
+        ##Print attributes of accounts?
         return_dict = {}
         computerAccounts = []
         userAccounts = []
@@ -54,6 +69,11 @@ class XmlSearch:
             if "user" in attributes['objectClass'].split(' ') and "person" in attributes['objectClass'].split(' '):
                 try:
                     attributes['sAMAccountName']
+                except:
+                    continue
+
+                try:
+                    attributes['sAMAccountName'][-1]
                 except:
                     continue
 
@@ -77,6 +97,9 @@ class XmlSearch:
 
     @staticmethod
     def getGroups(domain):
+        ##Return attributes of the group too
+        ##Do I want to return the members when there is xml output? maybe?
+
         return_list = []
         for attributes in XmlSearch.xmlParse(domain):
             try:
@@ -92,6 +115,18 @@ class XmlSearch:
     @staticmethod
     def groupMembership(group, domain):
         ##Return a list of dictionaries to hold all the attributes of each user
+        ##Rewrite how this return things, need to return path or attribute dictionary of user
+        ##want xml tree to look like
+        '''
+            <group>
+                <user>
+                    <user attributes>
+            <group>
+                <another group>
+                    <user>
+                        <user attributes>
+
+        '''
         return_list = []
         for attributes in XmlSearch.xmlParse(domain):
 
@@ -102,8 +137,10 @@ class XmlSearch:
                 except:
                     continue
                 if group in attributes['cn']:
+                    ##This is where the logic will go to determine if the member is another group or user
                     for objectName in attributes['member'].split(','):
                         if 'CN=' in objectName:
+                            ##Return all the attributes, maybe need to write a recurisive function to handle
                             return_list.append(objectName.split('CN=')[1])
                     #return_list.append(attributes['member'])
 

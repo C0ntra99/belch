@@ -16,6 +16,9 @@ Please thread the xml parsing holy FUCK
 Update readme to reflect the new output formats
 xml output for groupMembership
 xls output for all
+Sub parser:
+    one for recreating the domain from a mapped domain
+    the other for mapping another domain
 
 if xml output:
 parse EVERYTHING and create xml attributes with EVERYTHING and what values and attributes it holds
@@ -94,7 +97,20 @@ class Belch:
         computerAccounts = cacheSearch['computerAccounts']
         userAccounts = cacheSearch['userAccounts']
 
-        if options.stdout:
+        if options.xml:
+            root = ET.Element("{}".format(self.domain))
+            accounts = ET.SubElement(root, "accounts")
+            for user in userAccounts:
+                ET.SubElement(accounts, "userAccount", type='userAccount').text = user
+            for computer in computerAccounts:
+                ET.SubElement(accounts, "computerAccount", type='computerAccounts').text = computer
+
+            tree = ET.ElementTree(root)
+            tree.write('{}_accounts.xml'.format(self.domain))
+        elif options.xls:
+            print("xls options")
+
+        else:
             print("[+]All user accounts registered in the {} domain".format(self.domain))
             for i, user in enumerate(userAccounts):
                 i +=1
@@ -118,32 +134,12 @@ class Belch:
                     print("{:{pad}}|".format(user, pad=pad), end=' ')
                 else:
                     print("{:{pad}}|".format(user, pad=pad), end='\n')
-        elif options.xml:
-            root = ET.Element("{}".format(self.domain))
-            accounts = ET.SubElement(root, "accounts")
-            for user in userAccounts:
-                ET.SubElement(accounts, "userAccount", type='userAccount').text = user
-            for computer in computerAccounts:
-                ET.SubElement(accounts, "computerAccount", type='computerAccounts').text = computer
-
-            tree = ET.ElementTree(root)
-            tree.write('{}_accounts.xml'.format(self.domain))
-        elif options.xls:
-            print("xls options")
 
     def getUser(self, user):
         ##Print information for the specified group
         cacheSearch = XmlSearch.getUser(user, self.domain)
-        if options.stdout:
-            print("[+]Informaiton about the user: {}".format(user))
-            for attributes in cacheSearch:
-                l = []
-                [l.append(len(x)) for x in attributes.keys()]
-                pad = max(l)
-                for attr, value in attributes.items():
-                    print("{:{pad}}:{}".format(attr, value, pad=pad))
 
-        elif options.xml:
+        if options.xml:
             cacheSearch = XmlSearch.getUser(user, self.domain)
             for attributes in cacheSearch:
                 file = open('{}_{}.xml'.format(self.domain, user), 'w')
@@ -154,13 +150,34 @@ class Belch:
         elif options.xls:
             print("XLS option")
 
+        else:
+            print("[+]Informaiton about the user: {}".format(user))
+            for attributes in cacheSearch:
+                l = []
+                [l.append(len(x)) for x in attributes.keys()]
+                pad = max(l)
+                for attr, value in attributes.items():
+                    print("{:{pad}}:{}".format(attr, value, pad=pad))
+
 
     def printGroups(self):
         ##print all the print Groups
 
         ##Parse the objectClass to figure if somthing is a group
         cacheSearch = XmlSearch.getGroups(self.domain)
-        if options.stdout:
+
+        if options.xml:
+            root = ET.Element("{}".format(self.domain))
+            groups = ET.SubElement(root, "groups")
+            for group in cacheSearch:
+                ET.SubElement(groups, "group", name=group).text = group
+            tree = ET.ElementTree(root)
+            tree.write('{}_groups.xml'.format(self.domain))
+
+        elif options.xls:
+            print("XLS option")
+
+        else:
             print("[+]Groups within the {} domain:".format(self.domain))
             for i, group in enumerate(cacheSearch):
                 i +=1
@@ -172,21 +189,24 @@ class Belch:
                     print("{:{pad}}|".format(group, pad=pad), end=' ')
                 else:
                     print("{:{pad}}|".format(group, pad=pad), end='\n')
-        elif options.xml:
-            root = ET.Element("{}".format(self.domain))
-            groups = ET.SubElement(root, "groups")
-            for group in cacheSearch:
-                ET.SubElement(groups, "group", name=group).text = group
-            tree = ET.ElementTree(root)
-            tree.write('{}_groups.xml'.format(self.domain))
-
-        elif options.xls:
-            print("XLS option")
 
     def groupMembership(self, group):
         cacheSearch = XmlSearch.groupMembership(group, self.domain)
 
-        if options.stdout:
+        if options.xml:
+            root = ET.Element("{}".format(self.domain))
+            groupName = ET.SubElement(root, group)
+            for user in cacheSearch:
+                ET.SubElement(groupName, "user", name=user).text = user
+                ##Print out type={group, user}
+                ##Print out attributes of each user once it gets created in submodules
+            tree = ET.ElementTree(root)
+            tree.write('{}_{}.xml'.format(self.domain, group))
+
+        elif options.xls:
+            print("XLS option")
+
+        else:
             print('[+]Membership for: {}'.format(group))
             for i, user in enumerate(cacheSearch):
                 i +=1
@@ -201,18 +221,6 @@ class Belch:
 
             print('\n[+]Caution, some of these might be other groups...')
 
-        elif options.xml:
-            root = ET.Element("{}".format(self.domain))
-            groupName = ET.SubElement(root, group)
-            for user in cacheSearch:
-                ET.SubElement(groupName, "user", name=user).text = user
-                ##Print out type={group, user}
-                ##Print out attributes of each user once it gets created in submodules
-            tree = ET.ElementTree(root)
-            tree.write('{}_{}.xml'.format(self.domain, group))
-
-        elif options.xls:
-            print("XLS option")
 
 
     def run(self):
@@ -243,6 +251,8 @@ class Belch:
 
 
         filter = "(&(objectCategory=*)(objectClass=*))"
+
+        ##Test on how quiet this is with wireshark
         sc = ldap.SimplePagedResultsControl(size=100)
 
         ldapConnection.search(searchFilter = filter, searchControls=[sc], perRecordCallback=self.processRecord)
@@ -289,9 +299,8 @@ if __name__ == "__main__":
     ##query
 
     output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
-    output_group.add_argument('--stdout', action='store_true', help='Print the output to the console')
     output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
-    output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
+    #output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
 
     options = parser.parse_args()
     if '/' not in options.target:
