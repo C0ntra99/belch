@@ -1,67 +1,59 @@
-from os import listdir, sep
-from os.path import abspath, basename, isdir
 import xml.etree.cElementTree
-import os
-from threading import Thread
-
-def tree(dir, padding):
-    print padding[:-1] + '+-' + basename(abspath(dir)) + '/'
-    padding = padding + ' '
-    files = []
-
-    files = [x for x in listdir(dir) if isdir(dir + sep + x)]
-    count = 0
-    for file in files:
-        count += 1
-        print padding + '|'
-        path = dir + sep + file
-        if isdir(path):
-            if count == len(files):
-                tree(path, padding + ' ')
-            else:
-                tree(path, padding + '|')
-        else:
-            print padding + '+-' + file
-
-
 
 class XmlSearch:
 
     @staticmethod
-    def xmlThread(root, files):
-        for file_ in files:
-            e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
+    def loadMap():
+        with open('domainMap', 'r') as domainMap:
+            return domainMap.readlines()
+
+    @staticmethod
+    def getPath(object_):
+        indexes = XmlSearch.loadMap()
+        return_list = []
+        for index in indexes:
+            if object_ in index:
+                filepath = index.strip()
+                if filepath not in return_list:
+                    return_list.append(filepath)
+
+        if len(return_list) > 1:
+            return return_list
+        else:
+            return str(return_list[0])
+
+    @staticmethod
+    def multiParse(domain):
+        parsedFiles = []
+
+        map_ = XmlSearch.loadMap()
+        for path in map_:
+            path = path.strip()
+            e = xml.etree.ElementTree.parse(path).getroot()
 
             newDict = {}
             for type in e:
                 newDict[type.tag] = type.text
             parsedFiles.append(newDict)
+        return parsedFiles
 
     @staticmethod
-    def xmlParse(domain):
-        global parsedFiles
+    def singleParse(filePath):
         parsedFiles = []
+        e = xml.etree.ElementTree.parse(filePath).getroot()
+        newDict = {}
 
-        for root, dir, files in os.walk('{}/'.format(domain)):
-            #Thread(target=XmlSearch.xmlThread, args=(root,files,)).start()
-
-            for file_ in files:
-                e = xml.etree.ElementTree.parse(os.path.join(root, file_)).getroot()
-
-                newDict = {}
-                for type in e:
-                    newDict[type.tag] = type.text
-                parsedFiles.append(newDict)
-
+        for type in e:
+            newDict[type.tag] = type.text
+        parsedFiles.append(newDict)
         return parsedFiles
 
     @staticmethod
     def printUsers(domain):
-        ##Print attributes of accounts?
         return_dict = {}
         computerAccounts = []
         userAccounts = []
-        for attributes in XmlSearch.xmlParse(domain):
+        for attributes in XmlSearch.multiParse(domain):
             try:
                 attributes['objectClass']
             except:
@@ -88,20 +80,21 @@ class XmlSearch:
 
     @staticmethod
     def getUser(user, domain):
-        for attributes in XmlSearch.xmlParse(domain):
-            return_list = []
-            if attributes.get('sAMAccountName') == user:
-                return_list.append(attributes)
-                break
+        indexes = XmlSearch.loadMap()
+        return_list = []
+        for index in indexes:
+            if user in index:
+                filepath = index.strip()
+        for attributes in XmlSearch.singleParse(filepath):
+            return_list.append(attributes)
         return return_list
+
 
     @staticmethod
     def getGroups(domain):
-        ##Return attributes of the group too
-        ##Do I want to return the members when there is xml output? maybe?
 
         return_list = []
-        for attributes in XmlSearch.xmlParse(domain):
+        for attributes in XmlSearch.multiParse(domain):
             try:
                 attributes['objectClass']
             except:
@@ -114,39 +107,32 @@ class XmlSearch:
 
     @staticmethod
     def groupMembership(group, domain):
-        ##Return a list of dictionaries to hold all the attributes of each user
-        ##Rewrite how this return things, need to return path or attribute dictionary of user
-        ##want xml tree to look like
-        '''
-            <group>
-                <user>
-                    <user attributes>
-            <group>
-                <another group>
-                    <user>
-                        <user attributes>
-
-        '''
         return_list = []
-        for attributes in XmlSearch.xmlParse(domain):
+        for attributes in XmlSearch.singleParse(XmlSearch.getPath(group)):
 
             if attributes.get("objectClass") and "group" in attributes.get("objectClass"):
-                ##Make sure it is that one group
                 try:
                     attributes['member']
                 except:
                     continue
                 if group in attributes['cn']:
-                    ##This is where the logic will go to determine if the member is another group or user
                     for objectName in attributes['member'].split(','):
                         if 'CN=' in objectName:
-                            ##Return all the attributes, maybe need to write a recurisive function to handle
-                            return_list.append(objectName.split('CN=')[1])
-                    #return_list.append(attributes['member'])
+                            userPath = XmlSearch.getPath(objectName.split('CN=')[1])
+                            user_attr = XmlSearch.singleParse(userPath)
+                            return_list.append(user_attr[0])
 
         return return_list
 
-    ##This one is going to take a sec
+    @staticmethod
+    def getByKeyword(keyword):
+        return_list = []
+        for path_ in XmlSearch.getPath(keyword):
+            for attributes in XmlSearch.singleParse(path_):
+                return_list.append(attributes)
+        return return_list
+
+
     @staticmethod
     def getPolicies(domain):
         pass

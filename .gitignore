@@ -1,3 +1,4 @@
 dev/
 *.pyc
-*.sublime-workspace
+.vscode
+domainMap

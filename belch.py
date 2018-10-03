@@ -9,21 +9,10 @@ import getpass
 from submodules import *
 import xml.etree.cElementTree as ET
 import datetime
+from colorama import Fore, Back, Style, init
 
-'''Things to do'''
-'''
-Please thread the xml parsing holy FUCK
-Update readme to reflect the new output formats
-xml output for groupMembership
-xls output for all
-Sub parser:
-    one for recreating the domain from a mapped domain
-    the other for mapping another domain
 
-if xml output:
-parse EVERYTHING and create xml attributes with EVERYTHING and what values and attributes it holds
 
-'''
 
 class Belch:
 
@@ -46,7 +35,7 @@ class Belch:
             return
 
         info = []
-        for i,attribute in enumerate(data['attributes']):
+        for _,attribute in enumerate(data['attributes']):
             if attribute['type'] == 'distinguishedName':
                 self.generatePath(attribute['vals'][0])
 
@@ -56,34 +45,43 @@ class Belch:
 
         self.generateXml(info)
 
-    ##Create Directories based off of the distinguishedName
     def generatePath(self, dn):
         path = ''
-        for x in reversed(str(dn).split(',')[:self.spl]):
+        for _ in reversed(str(dn).split(',')[:self.spl]):
             path = '{}/'.format(self.domain)
+
             for y in list(reversed(str(dn).split(',')[:self.spl])):
                 path += y[3:]+'/'
+        
+        for special in '\:*?"<>|':
+            path = path.replace(special, "")
 
         try:
             os.makedirs(path)
-        except Exception as err:
-            ##Will have a bunch of file already exists error due to how path creation works
+        except Exception as _:
             pass
 
 
     def generateXml(self, info):
+        if os.path.exists('domainMap'):
+            os.remove('domainMap')
+        domainMap = open('domainMap', 'a')
         newDict = {}
         for dic in info:
             newDict[dic.keys()[0]] = dic.values()[0]
 
         dn = newDict['distinguishedName']
         path = '{}/'.format(self.domain)
-        for x in reversed(str(dn).split(',')[:self.spl]):
+        for _ in reversed(str(dn).split(',')[:self.spl]):
             path = '{}/'.format(self.domain)
             for y in list(reversed(str(dn).split(',')[:self.spl])):
                 path += y[3:]+'/'
+        for special in '\:*?"<>|':
+            path = path.replace(special, "")
         path += 'index.xml'
 
+        domainMap.write(path + "\n")
+        domainMap.close()
         file = open(path, 'w')
         xml = dicttoxml(newDict)
         file.write(xml.decode())
@@ -111,7 +109,8 @@ class Belch:
             print("xls options")
 
         else:
-            print("[+]All user accounts registered in the {} domain".format(self.domain))
+            print(running, end='')
+            print("All user accounts registered in the {} domain".format(self.domain))
             for i, user in enumerate(userAccounts):
                 i +=1
                 l = []
@@ -123,7 +122,8 @@ class Belch:
                 else:
                     print("{:{pad}}|".format(user, pad=pad), end='\n')
 
-            print("\n[+]All system accounts registered in the {} domain".format(self.domain))
+            print('\n'+running, end='')
+            print("All system accounts registered in the {} domain".format(self.domain))
             for i, user in enumerate(computerAccounts):
                 i +=1
                 l = []
@@ -136,8 +136,6 @@ class Belch:
                     print("{:{pad}}|".format(user, pad=pad), end='\n')
 
     def getUser(self, user):
-        ##Print information for the specified group
-        cacheSearch = XmlSearch.getUser(user, self.domain)
 
         if options.xml:
             cacheSearch = XmlSearch.getUser(user, self.domain)
@@ -151,7 +149,9 @@ class Belch:
             print("XLS option")
 
         else:
-            print("[+]Informaiton about the user: {}".format(user))
+            cacheSearch = XmlSearch.getUser(user, self.domain)
+            print(running, end='')
+            print("Informaiton about the user: {}".format(user))
             for attributes in cacheSearch:
                 l = []
                 [l.append(len(x)) for x in attributes.keys()]
@@ -161,9 +161,7 @@ class Belch:
 
 
     def printGroups(self):
-        ##print all the print Groups
 
-        ##Parse the objectClass to figure if somthing is a group
         cacheSearch = XmlSearch.getGroups(self.domain)
 
         if options.xml:
@@ -178,7 +176,8 @@ class Belch:
             print("XLS option")
 
         else:
-            print("[+]Groups within the {} domain:".format(self.domain))
+            print(running, end='')
+            print("Groups within the {} domain:".format(self.domain))
             for i, group in enumerate(cacheSearch):
                 i +=1
                 l = []
@@ -197,9 +196,9 @@ class Belch:
             root = ET.Element("{}".format(self.domain))
             groupName = ET.SubElement(root, group)
             for user in cacheSearch:
-                ET.SubElement(groupName, "user", name=user).text = user
-                ##Print out type={group, user}
-                ##Print out attributes of each user once it gets created in submodules
+                userElement = ET.SubElement(root, "member", name=user['cn'])
+                for key in user:
+                    ET.SubElement(userElement, key, name=key).text = user[key]
             tree = ET.ElementTree(root)
             tree.write('{}_{}.xml'.format(self.domain, group))
 
@@ -207,21 +206,32 @@ class Belch:
             print("XLS option")
 
         else:
-            print('[+]Membership for: {}'.format(group))
+            print(running, end='')
+            print('Membership for: {}'.format(group))
             for i, user in enumerate(cacheSearch):
                 i +=1
                 l = []
-                [l.append(len(x)) for x in cacheSearch]
+                [l.append(len(x['cn'])) for x in cacheSearch]
 
-                pad = max(l)
+                pad = max(l) + 5
                 if i % 3 != 0:
-                    print("{:{pad}}|".format(user, pad=pad), end=' ')
+                    print("{:{pad}}|".format(user["cn"], pad=pad), end=' ')
                 else:
-                    print("{:{pad}}|".format(user, pad=pad), end='\n')
+                    print("{:{pad}}|".format(user["cn"], pad=pad), end='\n')
+            print('\n'+waiting, end='')
+            print('Caution, some of these might be other groups...')
 
-            print('\n[+]Caution, some of these might be other groups...')
-
-
+    def keywordSearch(self, keyword):
+        cacheSearch = XmlSearch.getByKeyword(keyword)
+        print(running, end='')
+        print("Informaiton about the on the keyword: {}".format(keyword))
+        for attributes in cacheSearch:
+            l = []
+            [l.append(len(x)) for x in attributes.keys()]
+            pad = max(l)
+            for attr, value in attributes.items():
+                print("{:{pad}}:{}".format(attr, value, pad=pad))
+            print("~" * 50)
 
     def run(self):
 
@@ -229,22 +239,19 @@ class Belch:
 
         try:
             ldapConnection.login(self.u_name, self.passwd, self.domain)
-            print('[+]Connected to {} as {}'.format(self.domain, self.u_name))
+            print(running, end='')
+            print('Connected to {} as {}'.format(self.domain, self.u_name))
         except Exception as err:
             print(err)
 
 
             if self.options.users:
-                ##Filter to grab only users
                 filter = "(&(objectCategory=Person)(sAMAccountName=*))"
             elif self.options.computers:
-                ##Filter to grab only computers
                 filter = "(&(objectCategory=Computer)(objectClass=*))"
             elif self.options.username:
-                ##Filter to grab only information for specified user
                 filter = "(&(objectCategory=Person)(sAMAccountName={}))".format(self.options.username)
             elif self.options.computerName:
-                ##Filter to grab only information for specified computer
                 filter = "(&(objectCategory=Computer)(cn={}))".format(self.options.computerName)
             else:
                 filter = "(&(objectCategory=*)(objectClass=*))"
@@ -252,28 +259,20 @@ class Belch:
 
         filter = "(&(objectCategory=*)(objectClass=*))"
 
-        ##Test on how quiet this is with wireshark
         sc = ldap.SimplePagedResultsControl(size=100)
 
         ldapConnection.search(searchFilter = filter, searchControls=[sc], perRecordCallback=self.processRecord)
 
-        #if self.options.stdout:
-        #    tree(self.domain, ' ')
-
-#executer = Belch("user", "user","Rose.Labs")
-
-
-#executer.run()
-
-#executer.groupMembership("Enterprise Admins")
-#executer.printGroups()
-#executer.printUsers()
-#executer.getUser("STLCC0$")
 
 if __name__ == "__main__":
-    start_time = datetime.datetime.now()
 
+    start_time = datetime.datetime.now()
     parser = argparse.ArgumentParser()
+
+    init(autoreset=True)
+    running = Fore.GREEN + "[+]"
+    waiting = Fore.YELLOW + "[-]"
+    error = Fore.RED + "[!]"
 
     parser.add_argument('target', action='store', help='domain/username[:password]')
 
@@ -293,14 +292,12 @@ if __name__ == "__main__":
     group_group.add_argument('-pG', '--print-groups', action='store_true', help='Print all the groups on the domain')
     group_group.add_argument('-gM', '--group-membership', action='store', help='Print all the members of the specified group')
 
-    #other_group = parser.add_argument_group('Other options', description='Other options for searching through a mapped domain')
-    ##keyword
-    ##regex
-    ##query
+    other_group = parser.add_argument_group('Other options', description='Other options for searching through a mapped domain')
+    other_group = parser.add_argument('-k', '--keyword', action='store', help='Search the domain for a specific objected named \{keyword\}')
 
     output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
     output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
-    #output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
+    output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
 
     options = parser.parse_args()
     if '/' not in options.target:
@@ -313,32 +310,50 @@ if __name__ == "__main__":
             passwd = options.target.split('/')[1].split(':')[1]
         else:
             u_name = options.target.split('/')[1]
-            passwd = getpass.getpass('Password:')
+            passwd = getpass.getpass(waiting + 'Password:')
 
         if os.path.exists(domain):
-            sys.exit('[!]Error: Domain map already exists, please delete before running again')
+            sys.exit(Fore.RED + '[!]Error: Domain map already exists, please delete before running again')
 
         executer = Belch(u_name, passwd, domain, options)
 
     if options.all or options.users or options.computers or options.username or options.computerName:
         if os.path.exists(domain):
-            sys.exit('[!]Error: Domain map already exists, please delete before running again')
+            sys.exit(Fore.RED + '[!]Error: Domain map already exists, please delete before running again')
         else:
             os.mkdir(domain)
+        print(waiting, end='')
+        print("Starting to map the domain, this could take a while...")
         executer.run()
+        print(running, end='')
+        print("Belch has finished, run 'belch.py -h' to view more options")
     else:
         if os.path.exists(domain):
+            parseLen = sum(1 for _ in open('domainMap'))
             if options.print_users:
+                print(waiting, end="")
+                print("Parsing {} files for all user information".format(parseLen))
                 executer.printUsers()
             elif options.get_user:
+                print(waiting, end="")
+                print("Getting information for: {}".format(options.get_user))
                 executer.getUser(options.get_user)
             elif options.print_groups:
+                print(waiting, end="")
+                print("Parsing {} files for all group information".format(parseLen))
                 executer.printGroups()
             elif options.group_membership:
+                print(waiting, end="")
+                print("Retrieving membership for the group: {}".format(options.group_membership))
                 executer.groupMembership(options.group_membership)
+            elif options.keyword:
+                print(waiting, end="")
+                print("Parsing {} files for the keyword {}".format(parseLen, options.keyword))
+                executer.keywordSearch(options.keyword)
         else:
-            sys.exit('[!]Error: Cannot locate domain directory')
+            sys.exit(Fore.RED + '[!]Error: Cannot locate domain directory')
 
     end_time = datetime.datetime.now()
     elapsed_time = end_time - start_time
+    print(waiting, end='')
     print("Time elapsed: ", elapsed_time.seconds, ":", elapsed_time.microseconds)
