@@ -1,5 +1,40 @@
 import xml.etree.cElementTree
+import argparse
 
+
+class Args:
+
+    @staticmethod
+    def getArgs():
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument('target', action='store', help='domain/username[:password]')
+
+        control_group = parser.add_argument_group('Control Actions', description='Options when querying the domain')
+        control_group.add_argument('-a', '--all', action='store_true', help='Query for all information on the domain')
+        control_group.add_argument('-u', '--users', action='store_true', help='Only query for the user information on the domain')
+        control_group.add_argument('-uN', '--username', action ='store', help='Only query for one specific user')
+        control_group.add_argument('-c', '--computers', action='store_true', help='Only query for the computer information on the domain')
+        control_group.add_argument('-cN', '--computerName', action='store', help='Only query for one specific computer')
+
+        user_group = parser.add_argument_group('User Actions', description='Options when searching through a mapped domain')
+        user_group.add_argument('-pU', '--print-users', action='store_true', help='Print all the users on the domain')
+        user_group.add_argument('-gU', '--get-user', action='store', help='Print out the information of a specified user')
+
+        group_group = parser.add_argument_group('Group Actions', description='Options when searching through a mapped domain')
+        group_group.add_argument('-pG', '--print-groups', action='store_true', help='Print all the groups on the domain')
+        group_group.add_argument('-gM', '--group-membership', action='store', help='Print all the members of the specified group')
+
+        other_group = parser.add_argument_group('Other options', description='Other options for searching through a mapped domain')
+        other_group.add_argument('-k', '--keyword', action='store', help='Search the domain for a specific objected named {keyword}')
+        # regex
+        # query
+
+        output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
+        output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
+        output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file (THIS DOES NOT WORK)')
+
+        return parser.parse_args()
 class XmlSearch:
 
     @staticmethod
@@ -28,6 +63,9 @@ class XmlSearch:
 
         map_ = XmlSearch.loadMap()
         for path in map_:
+            # Take this out once we fix that issue
+            # if "Full Time Staff and Faculty" in path:
+             # continue
             path = path.strip()
             e = xml.etree.ElementTree.parse(path).getroot()
 
@@ -50,6 +88,7 @@ class XmlSearch:
 
     @staticmethod
     def printUsers(domain):
+        # Print attributes of accounts?
         return_dict = {}
         computerAccounts = []
         userAccounts = []
@@ -92,6 +131,7 @@ class XmlSearch:
 
     @staticmethod
     def getGroups(domain):
+        # Return attributes of the group too
 
         return_list = []
         for attributes in XmlSearch.multiParse(domain):
@@ -111,11 +151,13 @@ class XmlSearch:
         for attributes in XmlSearch.singleParse(XmlSearch.getPath(group)):
 
             if attributes.get("objectClass") and "group" in attributes.get("objectClass"):
+                # Make sure it is that one group
                 try:
                     attributes['member']
                 except:
                     continue
                 if group in attributes['cn']:
+                    # This is where the logic will go to determine if the member is another group or user
                     for objectName in attributes['member'].split(','):
                         if 'CN=' in objectName:
                             userPath = XmlSearch.getPath(objectName.split('CN=')[1])
@@ -127,12 +169,17 @@ class XmlSearch:
     @staticmethod
     def getByKeyword(keyword):
         return_list = []
-        for path_ in XmlSearch.getPath(keyword):
-            for attributes in XmlSearch.singleParse(path_):
-                return_list.append(attributes)
+        path = XmlSearch.getPath(keyword)
+        if type(path) == list:
+            for path in XmlSearch.getPath(keyword):
+                for attributes in XmlSearch.singleParse(path):
+                    return_list.append(attributes)
+        else:
+            return_list.append(XmlSearch.singleParse(path))
         return return_list
 
 
+    # This one is going to take a sec
     @staticmethod
     def getPolicies(domain):
         pass

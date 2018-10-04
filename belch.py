@@ -4,7 +4,6 @@ from datetime import datetime
 import sys
 import os
 from dicttoxml import dicttoxml
-import argparse
 import getpass
 from submodules import *
 import xml.etree.cElementTree as ET
@@ -47,11 +46,11 @@ class Belch:
 
     def generatePath(self, dn):
         path = ''
-        for _ in reversed(str(dn).split(',')[:self.spl]):
+        for _ in reversed(str(dn).split('=')[:self.spl]):
             path = '{}/'.format(self.domain)
 
-            for y in list(reversed(str(dn).split(',')[:self.spl])):
-                path += y[3:]+'/'
+            for y in list(reversed(str(dn).split('=')[:self.spl])):
+                path += y[:-3]+'/'
         
         for special in '\:*?"<>|':
             path = path.replace(special, "")
@@ -63,8 +62,6 @@ class Belch:
 
 
     def generateXml(self, info):
-        if os.path.exists('domainMap'):
-            os.remove('domainMap')
         domainMap = open('domainMap', 'a')
         newDict = {}
         for dic in info:
@@ -72,14 +69,15 @@ class Belch:
 
         dn = newDict['distinguishedName']
         path = '{}/'.format(self.domain)
-        for _ in reversed(str(dn).split(',')[:self.spl]):
+        for _ in reversed(str(dn).split('=')[:self.spl]):
             path = '{}/'.format(self.domain)
-            for y in list(reversed(str(dn).split(',')[:self.spl])):
-                path += y[3:]+'/'
+            for y in list(reversed(str(dn).split('=')[:self.spl])):
+                path += y[:-3] + '/'
         for special in '\:*?"<>|':
             path = path.replace(special, "")
-        path += 'index.xml'
+        path = path[:-1] + 'index.xml'
 
+        print(path)
         domainMap.write(path + "\n")
         domainMap.close()
         file = open(path, 'w')
@@ -225,13 +223,22 @@ class Belch:
         cacheSearch = XmlSearch.getByKeyword(keyword)
         print(running, end='')
         print("Informaiton about the on the keyword: {}".format(keyword))
-        for attributes in cacheSearch:
-            l = []
-            [l.append(len(x)) for x in attributes.keys()]
-            pad = max(l)
-            for attr, value in attributes.items():
-                print("{:{pad}}:{}".format(attr, value, pad=pad))
-            print("~" * 50)
+        if len(cacheSearch) > 1:
+            for attributes in cacheSearch:
+                l = []
+                [l.append(len(x)) for x in attributes.keys()]
+                pad = max(l)
+                for attr, value in attributes.items():
+                    print("{:{pad}}:{}".format(attr, value, pad=pad))
+                print("~" * 50)
+        else:
+            for attributes in cacheSearch[0]:
+                l = []
+                [l.append(len(x)) for x in attributes.keys()]
+                pad = max(l)
+                for attr, value in attributes.items():
+                    print("{:{pad}}:{}".format(attr, value, pad=pad))
+                print("~" * 50)
 
     def run(self):
 
@@ -241,8 +248,11 @@ class Belch:
             ldapConnection.login(self.u_name, self.passwd, self.domain)
             print(running, end='')
             print('Connected to {} as {}'.format(self.domain, self.u_name))
-        except Exception as err:
+        except ldap.LDAPSessionError as err:
             print(err)
+            if 'invalidCredentials' in str(err):
+                print(error, end='')
+                sys.exit('Invalid credentials')
 
 
             if self.options.users:
@@ -267,39 +277,15 @@ class Belch:
 if __name__ == "__main__":
 
     start_time = datetime.datetime.now()
-    parser = argparse.ArgumentParser()
 
     init(autoreset=True)
     running = Fore.GREEN + "[+]"
     waiting = Fore.YELLOW + "[-]"
     error = Fore.RED + "[!]"
 
-    parser.add_argument('target', action='store', help='domain/username[:password]')
+    
+    options = Args.getArgs()
 
-
-    control_group = parser.add_argument_group('Control Actions', description='Options when querying the domain')
-    control_group.add_argument('-a', '--all', action='store_true', help='Query for all information on the domain')
-    control_group.add_argument('-u', '--users', action='store_true', help='Only query for the user information on the domain')
-    control_group.add_argument('-uN', '--username', action ='store', help='Only query for one specific user')
-    control_group.add_argument('-c', '--computers', action='store_true', help='Only query for the computer information on the domain')
-    control_group.add_argument('-cN', '--computerName', action='store', help='Only query for one specific computer')
-
-    user_group = parser.add_argument_group('User Actions', description='Options when searching through a mapped domain')
-    user_group.add_argument('-pU', '--print-users', action='store_true', help='Print all the users on the domain')
-    user_group.add_argument('-gU', '--get-user', action='store', help='Print out the information of a specified user')
-
-    group_group = parser.add_argument_group('Group Actions', description='Options when searching through a mapped domain')
-    group_group.add_argument('-pG', '--print-groups', action='store_true', help='Print all the groups on the domain')
-    group_group.add_argument('-gM', '--group-membership', action='store', help='Print all the members of the specified group')
-
-    other_group = parser.add_argument_group('Other options', description='Other options for searching through a mapped domain')
-    other_group = parser.add_argument('-k', '--keyword', action='store', help='Search the domain for a specific objected named \{keyword\}')
-
-    output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
-    output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
-    output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file')
-
-    options = parser.parse_args()
     if '/' not in options.target:
         domain = options.target
         executer = Belch(domain=domain, options=options)
