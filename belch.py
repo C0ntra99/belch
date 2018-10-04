@@ -77,7 +77,6 @@ class Belch:
             path = path.replace(special, "")
         path = path[:-1] + 'index.xml'
 
-        print(path)
         domainMap.write(path + "\n")
         domainMap.close()
         file = open(path, 'w')
