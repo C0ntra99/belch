@@ -24,13 +24,15 @@ Pipenv is used to keep everything in one place and to make sure belch's dependen
 
 ### Installing
 
-Make sure you are in the belch directory and run:
+Make sure you are in the belch directory and install the dependencies:
 
 ```
 pipenv install
-'''
-To install all of belch's dependencies, and then run:
-'''
+```
+
+Once that command completes go into the env:
+
+```
 pipenv shell
 ```
 
@@ -62,6 +64,7 @@ Example:
 python belch -u example.com/user:user
 ```
 
+p
 If you are wanting to only grab one specific user of one specific computer use the `-uN USERNAME` or `-cN COMPUTERNAME` flags.
 
 ### Searching

@@ -1,6 +1,6 @@
 import xml.etree.cElementTree
 import argparse
-
+from colorama import Fore
 
 class Args:
 
@@ -33,6 +33,7 @@ class Args:
         output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file (THIS DOES NOT WORK)')
 
         return parser.parse_args()
+
 class XmlSearch:
 
     @staticmethod
@@ -52,8 +53,10 @@ class XmlSearch:
 
         if len(return_list) > 1:
             return return_list
-        else:
+        elif len(return_list) == 1:
             return str(return_list[0])
+        else:
+            return return_list
 
     @staticmethod
     def multiParse(domain):
@@ -118,8 +121,11 @@ class XmlSearch:
         for index in indexes:
             if user in index:
                 filepath = index.strip()
-        for attributes in XmlSearch.singleParse(filepath):
-            return_list.append(attributes)
+        try:
+            for attributes in XmlSearch.singleParse(filepath):
+                return_list.append(attributes)
+        except:
+            return return_list
         return return_list
 
 
@@ -141,7 +147,11 @@ class XmlSearch:
     @staticmethod
     def groupMembership(group, domain):
         return_list = []
-        for attributes in XmlSearch.singleParse(XmlSearch.getPath(group)):
+        path = XmlSearch.getPath(group)
+        if len(path) == 0:
+            return return_list
+
+        for attributes in XmlSearch.singleParse(path):
 
             if attributes.get("objectClass") and "group" in attributes.get("objectClass"):
                 try:

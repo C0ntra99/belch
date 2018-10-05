@@ -12,7 +12,6 @@ from colorama import Fore, Back, Style, init
 
 
 
-
 class Belch:
 
     def __init__(self, u_name=None, passwd=None, domain=None, options=None):
@@ -147,6 +146,9 @@ class Belch:
 
         else:
             cacheSearch = XmlSearch.getUser(user, self.domain)
+            if len(cacheSearch) == 0:
+                print(error, end='')
+                sys.exit('Error: No objects were found')
             print(running, end='')
             print("Informaiton about the user: {}".format(user))
             for attributes in cacheSearch:
@@ -188,6 +190,9 @@ class Belch:
 
     def groupMembership(self, group):
         cacheSearch = XmlSearch.groupMembership(group, self.domain)
+        if len(cacheSearch) == 0:
+            print(Fore.RED + '[!]', end='')
+            sys.exit('Error: No group has been found')
 
         if options.xml:
             root = ET.Element("{}".format(self.domain))
@@ -241,35 +246,38 @@ class Belch:
 
     def run(self):
 
-        ldapConnection = ldap.LDAPConnection('ldap://%s' % self.domain, self.baseDN)
-
         try:
+            ldapConnection = ldap.LDAPConnection('ldap://%s' % self.domain, self.baseDN)
             ldapConnection.login(self.u_name, self.passwd, self.domain)
             print(running, end='')
             print('Connected to {} as {}'.format(self.domain, self.u_name))
-        except ldap.LDAPSessionError as err:
-            print(err)
+            os.mkdir(self.domain)
+        except Exception as err:
             if 'invalidCredentials' in str(err):
                 print(error, end='')
-                sys.exit('Invalid credentials')
+                sys.exit('Error: Invalid credentials')
+            if 'Connection error' in str(err):
+                print(error, end='')
+                sys.exit('Error: Cannot connect to server')
 
 
-            if self.options.users:
-                filter = "(&(objectCategory=Person)(sAMAccountName=*))"
-            elif self.options.computers:
-                filter = "(&(objectCategory=Computer)(objectClass=*))"
-            elif self.options.username:
-                filter = "(&(objectCategory=Person)(sAMAccountName={}))".format(self.options.username)
-            elif self.options.computerName:
-                filter = "(&(objectCategory=Computer)(cn={}))".format(self.options.computerName)
-            else:
-                filter = "(&(objectCategory=*)(objectClass=*))"
+        if self.options.users:
+            filter = "(&(objectCategory=Person)(sAMAccountName=*))"
+        elif self.options.computers:
+            filter = "(&(objectCategory=Computer)(objectClass=*))"
+        elif self.options.username:
+            filter = "(&(objectCategory=Person)(sAMAccountName={}))".format(self.options.username)
+        elif self.options.computerName:
+            filter = "(&(objectCategory=Computer)(cn={}))".format(self.options.computerName)
+        else:
+            filter = "(&(objectCategory=*)(objectClass=*))"
 
 
-        filter = "(&(objectCategory=*)(objectClass=*))"
 
         sc = ldap.SimplePagedResultsControl(size=100)
 
+        print(Fore.YELLOW + '[-]', end='')
+        print("Starting to map the domain, this could take a while...")
         ldapConnection.search(searchFilter = filter, searchControls=[sc], perRecordCallback=self.processRecord)
 
 
@@ -290,53 +298,60 @@ if __name__ == "__main__":
         executer = Belch(domain=domain, options=options)
     else:
         domain = options.target.split('/')[0]
+        if os.path.exists(domain):
+            print(waiting, end='')
+            answer = str(raw_input('Domain already exists, would you like to rename?[Y/n]'))
+            if answer.lower() == 'n':
+                print(error, end='')
+                sys.exit('Error: Domain map already exists, please rename or delete before running again')
+            elif answer.lower() == 'y' or answer == '':
+                os.rename(domain, domain+'.bak')
+            else:
+                print(error, end='')
+                sys.exit('Error: That is not a valid option')
+
         if ':' in options.target.split('/')[1]:
             u_name = options.target.split('/')[1].split(':')[0]
             passwd = options.target.split('/')[1].split(':')[1]
         else:
             u_name = options.target.split('/')[1]
-            passwd = getpass.getpass(waiting + 'Password:')
-
-        if os.path.exists(domain):
-            sys.exit(Fore.RED + '[!]Error: Domain map already exists, please delete before running again')
-
+            print(waiting, end='')
+            passwd = getpass.getpass('Password:')
         executer = Belch(u_name, passwd, domain, options)
+        
 
     if options.all or options.users or options.computers or options.username or options.computerName:
-        if os.path.exists(domain):
-            sys.exit(Fore.RED + '[!]Error: Domain map already exists, please delete before running again')
-        else:
-            os.mkdir(domain)
-        print(waiting, end='')
-        print("Starting to map the domain, this could take a while...")
         executer.run()
         print(running, end='')
         print("Belch has finished, run 'belch.py -h' to view more options")
     else:
-        if os.path.exists(domain):
-            parseLen = sum(1 for _ in open('domainMap'))
-            if options.print_users:
-                print(waiting, end="")
-                print("Parsing {} files for all user information".format(parseLen))
-                executer.printUsers()
-            elif options.get_user:
-                print(waiting, end="")
-                print("Getting information for: {}".format(options.get_user))
-                executer.getUser(options.get_user)
-            elif options.print_groups:
-                print(waiting, end="")
-                print("Parsing {} files for all group information".format(parseLen))
-                executer.printGroups()
-            elif options.group_membership:
-                print(waiting, end="")
-                print("Retrieving membership for the group: {}".format(options.group_membership))
-                executer.groupMembership(options.group_membership)
-            elif options.keyword:
-                print(waiting, end="")
-                print("Parsing {} files for the keyword {}".format(parseLen, options.keyword))
-                executer.keywordSearch(options.keyword)
-        else:
-            sys.exit(Fore.RED + '[!]Error: Cannot locate domain directory')
+        try:
+            if os.path.exists(domain):
+                parseLen = sum(1 for _ in open('domainMap'))
+                if options.print_users:
+                    print(waiting, end="")
+                    print("Parsing {} files for all user information".format(parseLen))
+                    executer.printUsers()
+                elif options.get_user:
+                    print(waiting, end="")
+                    print("Getting information for: {}".format(options.get_user))
+                    executer.getUser(options.get_user)
+                elif options.print_groups:
+                    print(waiting, end="")
+                    print("Parsing {} files for all group information".format(parseLen))
+                    executer.printGroups()
+                elif options.group_membership:
+                    print(waiting, end="")
+                    print("Retrieving membership for the group: {}".format(options.group_membership))
+                    executer.groupMembership(options.group_membership)
+                elif options.keyword:
+                    print(waiting, end="")
+                    print("Parsing {} files for the keyword {}".format(parseLen, options.keyword))
+                    executer.keywordSearch(options.keyword)
+            else:
+                sys.exit(Fore.RED + '[!]Error: Cannot locate domain directory')
+        except:
+            print("Some Error occured lol")
 
     end_time = datetime.datetime.now()
     elapsed_time = end_time - start_time
