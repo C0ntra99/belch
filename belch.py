@@ -20,6 +20,12 @@ class Belch:
         self.domain = domain
         self.options = options
         self.baseDN = ''
+        self.lmhash = ''
+        self.nthash = ''
+
+        if options.hash is not None:
+            self.lmhash, self.nthash = options.hash.split(':')
+
         self.spl = len(self.domain.split('.')) * -1
 
         for domainParts in domain.split('.'):
@@ -225,6 +231,12 @@ class Belch:
 
     def keywordSearch(self, keyword):
         cacheSearch = XmlSearch.getByKeyword(keyword)
+        
+        if len(cacheSearch) == 0:
+            print(error, end='')
+            print("Nothing was found matching the keyword: {}".format(keyword))
+            return
+
         print(running, end='')
         print("Informaiton about the on the keyword: {}".format(keyword))
         if len(cacheSearch) > 1:
@@ -248,7 +260,7 @@ class Belch:
 
         try:
             ldapConnection = ldap.LDAPConnection('ldap://%s' % self.domain, self.baseDN)
-            ldapConnection.login(self.u_name, self.passwd, self.domain)
+            ldapConnection.login(self.u_name, self.passwd, self.domain, self.lmhash, self.nthash)
             print(running, end='')
             print('Connected to {} as {}'.format(self.domain, self.u_name))
             os.mkdir(self.domain)
@@ -282,7 +294,6 @@ class Belch:
 
 
 if __name__ == "__main__":
-
     start_time = datetime.datetime.now()
 
     init(autoreset=True)
@@ -290,7 +301,10 @@ if __name__ == "__main__":
     waiting = Fore.YELLOW + "[-]"
     error = Fore.RED + "[!]"
 
-    
+    if len(sys.argv) < 3:
+        print(error, end='')
+        sys.exit('Please specify an option')
+        
     options = Args.getArgs()
 
     if '/' not in options.target:
@@ -298,14 +312,15 @@ if __name__ == "__main__":
         executer = Belch(domain=domain, options=options)
     else:
         domain = options.target.split('/')[0]
-        if os.path.exists(domain):
+        if os.path.exists(domain) and os.path.exists('domainMap'):
             print(waiting, end='')
-            answer = str(raw_input('Domain already exists, would you like to rename?[Y/n]'))
+            answer = str(raw_input('Domain mapping already exists, would you like to rename?[Y/n]'))
             if answer.lower() == 'n':
                 print(error, end='')
                 sys.exit('Error: Domain map already exists, please rename or delete before running again')
             elif answer.lower() == 'y' or answer == '':
                 os.rename(domain, domain+'.bak')
+                os.rename('domainMap', domain+'.map')
             else:
                 print(error, end='')
                 sys.exit('Error: That is not a valid option')
@@ -325,33 +340,30 @@ if __name__ == "__main__":
         print(running, end='')
         print("Belch has finished, run 'belch.py -h' to view more options")
     else:
-        try:
-            if os.path.exists(domain):
-                parseLen = sum(1 for _ in open('domainMap'))
-                if options.print_users:
-                    print(waiting, end="")
-                    print("Parsing {} files for all user information".format(parseLen))
-                    executer.printUsers()
-                elif options.get_user:
-                    print(waiting, end="")
-                    print("Getting information for: {}".format(options.get_user))
-                    executer.getUser(options.get_user)
-                elif options.print_groups:
-                    print(waiting, end="")
-                    print("Parsing {} files for all group information".format(parseLen))
-                    executer.printGroups()
-                elif options.group_membership:
-                    print(waiting, end="")
-                    print("Retrieving membership for the group: {}".format(options.group_membership))
-                    executer.groupMembership(options.group_membership)
-                elif options.keyword:
-                    print(waiting, end="")
-                    print("Parsing {} files for the keyword {}".format(parseLen, options.keyword))
-                    executer.keywordSearch(options.keyword)
-            else:
-                sys.exit(Fore.RED + '[!]Error: Cannot locate domain directory')
-        except:
-            print("Some Error occured lol")
+        if os.path.exists(domain):
+            parseLen = sum(1 for _ in open('domainMap'))
+            if options.print_users:
+                print(waiting, end="")
+                print("Parsing {} files for all user information".format(parseLen))
+                executer.printUsers()
+            elif options.get_user:
+                print(waiting, end="")
+                print("Getting information for: {}".format(options.get_user))
+                executer.getUser(options.get_user)
+            elif options.print_groups:
+                print(waiting, end="")
+                print("Parsing {} files for all group information".format(parseLen))
+                executer.printGroups()
+            elif options.group_membership:
+                print(waiting, end="")
+                print("Retrieving membership for the group: {}".format(options.group_membership))
+                executer.groupMembership(options.group_membership)
+            elif options.keyword:
+                print(waiting, end="")
+                print("Parsing {} files for the keyword {}".format(parseLen, options.keyword))
+                executer.keywordSearch(options.keyword)
+        else:
+            sys.exit(Fore.RED + '[!]Error: Cannot locate domain directory')
 
     end_time = datetime.datetime.now()
     elapsed_time = end_time - start_time

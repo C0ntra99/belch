@@ -10,6 +10,10 @@ class Args:
 
         parser.add_argument('target', action='store', help='domain/username[:password]')
 
+        
+        auth_group = parser.add_argument_group('Authentication')
+        auth_group.add_argument('-ha', '--hash', action='store', help='NTML hash, format is LMHASH:NTHASH')
+
         control_group = parser.add_argument_group('Control Actions', description='Options when querying the domain')
         control_group.add_argument('-a', '--all', action='store_true', help='Query for all information on the domain')
         control_group.add_argument('-u', '--users', action='store_true', help='Only query for the user information on the domain')
