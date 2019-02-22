@@ -229,24 +229,44 @@ class Belch:
             print('\n'+waiting, end='')
             print('Caution, some of these might be other groups...')
 
-    def keywordSearch(self, keyword):
+    def keywordSearch(self, keyword): 
         cacheSearch = XmlSearch.getByKeyword(keyword)
-        
+        ##print(cacheSearch)
         if len(cacheSearch) == 0:
             print(error, end='')
             print("Nothing was found matching the keyword: {}".format(keyword))
             return
 
         print(running, end='')
+        if options.xml:
+            print(error, end='')
+            print("This funciton does not yet work.")
+            return
+            #root = ET.Element("{}".format(self.domain))
+            #groupName = ET.SubElement(root, group)
+            root = ET.Element("{}".format(self.domain))
+            if len(cacheSearch) > 1:
+                for x in cacheSearch:
+                    searchReturn = ET.SubElement(root, keyword)
+                    for attributes in x:
+                        userElement = ET.SubElement(root, "member", name=attributes['cn'])
+                        for key in attributes:
+                            ET.SubElement(userElement, key, name=key).text = attributes[key]
+                tree = ET.ElementTree(root)
+                tree.write('{}_{}.xml'.format(self.domain, keyword))
+            return
+
         print("Informaiton about the on the keyword: {}".format(keyword))
         if len(cacheSearch) > 1:
-            for attributes in cacheSearch:
-                l = []
-                [l.append(len(x)) for x in attributes.keys()]
-                pad = max(l)
-                for attr, value in attributes.items():
-                    print("{:{pad}}:{}".format(attr, value, pad=pad))
-                print("~" * 50)
+            for x in cacheSearch:
+                for attributes in x:
+                    l = []
+                    ##print(attributes)
+                    [l.append(len(x)) for x in attributes.keys()]
+                    pad = max(l)
+                    for attr, value in attributes.items():
+                        print("{:{pad}}:{}".format(attr, value, pad=pad))
+                    print("~" * 50)
         else:
             for attributes in cacheSearch[0]:
                 l = []
@@ -301,11 +321,13 @@ if __name__ == "__main__":
     waiting = Fore.YELLOW + "[-]"
     error = Fore.RED + "[!]"
 
+    options = Args.getArgs()
+
     if len(sys.argv) < 3:
         print(error, end='')
         sys.exit('Please specify an option')
         
-    options = Args.getArgs()
+    
 
     if '/' not in options.target:
         domain = options.target

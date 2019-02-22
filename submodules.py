@@ -174,13 +174,12 @@ class XmlSearch:
     @staticmethod
     def getByKeyword(keyword):
         return_list = []
-        path = XmlSearch.getPath(keyword)
-        if type(path) == list:
-            for path in XmlSearch.getPath(keyword):
-                for attributes in XmlSearch.singleParse(path):
-                    return_list.append(attributes)
-        else:
-            return_list.append(XmlSearch.singleParse(path))
+        ##
+        indexes = XmlSearch.loadMap()
+        for path in indexes:
+            attributes = XmlSearch.singleParse(path.strip())
+            if keyword in attributes[0].values():
+                return_list.append(attributes)
         return return_list
 
 
