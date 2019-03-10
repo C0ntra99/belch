@@ -22,8 +22,13 @@ This program is written using the Impacket LDAP libreary which is written in pyt
 
 Pipenv is used to keep everything in one place and to make sure belch's dependencies don't clash with any other dependencies that are installed on your machine.
 
+#### Docker Usage
+
+If you are wanting to use the docker instance of this then you are going to need to have docker installed.
+
 ### Installing
 
+#### Pipenv
 Make sure you are in the belch directory and install the dependencies:
 
 ```
@@ -37,6 +42,25 @@ pipenv shell
 ```
 
 To get into the virtual environment. After this you can run `python belch.py -h` to view the arguments.
+
+#### Docker
+This is still in progress but it might work, here is how you can run it in a docker container currently.
+
+```
+docker build -t belch .
+docker run -it belch bash
+```
+
+OR
+
+If you dont want to run clone the github repo and build the image yourself I have already built an image for you. Just run
+
+```
+docker run -it efower/belch bash
+```
+
+
+*I am still looking into actually using it as a normal CLI rather than needing to be in the container to run it.*
 
 ## Using belch
 
@@ -64,7 +88,6 @@ Example:
 python belch -u example.com/user:user
 ```
 
-p
 If you are wanting to only grab one specific user of one specific computer use the `-uN USERNAME` or `-cN COMPUTERNAME` flags.
 
 ### Searching
@@ -83,7 +106,9 @@ python belch.py example.com -pU
 python belch.py example.com -gM "Domain admins"
 ```
 
-The keyword search is a little different. It will search the domainMap for all objects that math the keyword you provide. Note that this does not search inside the XML files, just the domainMap.
+The keyword search is a little different. It will search the domainMap for all objects that has a value that also match the keyword you provide. 
+
+*Note: This will only search for exact words and is case specific.* 
 '''
 python belch.py example.com -k "Test User"
 '''

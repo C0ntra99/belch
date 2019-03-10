@@ -1,6 +1,5 @@
 FROM python:2
 
-COPY . /belch
-WORKDIR /belch
+COPY . belch/
+WORKDIR belch/
 RUN pip install -r requirements.txt
-CMD python belch.py -h
