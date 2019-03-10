@@ -107,8 +107,6 @@ class Belch:
 
             tree = ET.ElementTree(root)
             tree.write('{}_accounts.xml'.format(self.domain))
-        elif options.xls:
-            print("xls options")
 
         else:
             print(running, end='')
@@ -147,9 +145,6 @@ class Belch:
                 file.write(xml.decode())
                 file.close()
 
-        elif options.xls:
-            print("XLS option")
-
         else:
             cacheSearch = XmlSearch.getUser(user, self.domain)
             if len(cacheSearch) == 0:
@@ -176,9 +171,6 @@ class Belch:
                 ET.SubElement(groups, "group", name=group).text = group
             tree = ET.ElementTree(root)
             tree.write('{}_groups.xml'.format(self.domain))
-
-        elif options.xls:
-            print("XLS option")
 
         else:
             print(running, end='')
@@ -210,8 +202,6 @@ class Belch:
             tree = ET.ElementTree(root)
             tree.write('{}_{}.xml'.format(self.domain, group))
 
-        elif options.xls:
-            print("XLS option")
 
         else:
             print(running, end='')
@@ -237,25 +227,29 @@ class Belch:
             print("Nothing was found matching the keyword: {}".format(keyword))
             return
 
-        print(running, end='')
+        
         if options.xml:
-            print(error, end='')
-            print("This funciton does not yet work.")
-            return
-            #root = ET.Element("{}".format(self.domain))
-            #groupName = ET.SubElement(root, group)
             root = ET.Element("{}".format(self.domain))
             if len(cacheSearch) > 1:
                 for x in cacheSearch:
-                    searchReturn = ET.SubElement(root, keyword)
                     for attributes in x:
-                        userElement = ET.SubElement(root, "member", name=attributes['cn'])
+                        userElement = ET.SubElement(root, "User", name=attributes['displayName'])
                         for key in attributes:
                             ET.SubElement(userElement, key, name=key).text = attributes[key]
                 tree = ET.ElementTree(root)
                 tree.write('{}_{}.xml'.format(self.domain, keyword))
+            else:
+                for attributes in cacheSearch[0]:
+                        userElement = ET.SubElement(root, "User", name=attributes['displayName'])
+                        for key in attributes:
+                            ET.SubElement(userElement, key, name=key).text = attributes[key]
+                tree = ET.ElementTree(root)
+                tree.write('{}_{}.xml'.format(self.domain, keyword))
+            print(running, end='')
+            print("Output has been saved to {}_{}.xml".format(self.domain, keyword))
             return
-
+            
+        print(running, end='')
         print("Informaiton about the on the keyword: {}".format(keyword))
         if len(cacheSearch) > 1:
             for x in cacheSearch:

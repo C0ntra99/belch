@@ -34,7 +34,6 @@ class Args:
 
         output_group = parser.add_argument_group('Output options', description='Decide how to output the information')
         output_group.add_argument('-x', '--xml', action='store_true', help='Store the output into a xml file')
-        output_group.add_argument('-e', '--xls', action='store_true', help='Store the output into a xls file (THIS DOES NOT WORK)')
 
         return parser.parse_args()
 
