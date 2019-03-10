@@ -22,7 +22,7 @@ This program is written using the Impacket LDAP libreary which is written in pyt
 
 Pipenv is used to keep everything in one place and to make sure belch's dependencies don't clash with any other dependencies that are installed on your machine.
 
-#### Docker Usage
+#### Docker 
 
 If you are wanting to use the docker instance of this then you are going to need to have docker installed.
 
@@ -43,7 +43,7 @@ pipenv shell
 
 To get into the virtual environment. After this you can run `python belch.py -h` to view the arguments.
 
-#### Docker
+#### Docker building
 This is still in progress but it might work, here is how you can run it in a docker container currently.
 
 ```
